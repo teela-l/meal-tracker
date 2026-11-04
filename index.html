@@ -287,15 +287,28 @@ async function pull() {
     if (e.value !== 'Y' && e.value !== 'N') continue;
     (fresh[e.date] = fresh[e.date] || {})[e.meal] = e.value;
   }
-  // keep any edits made while this request was in flight
+  // Never drop an entry that's on this phone but missing from the sheet:
+  // keep it and queue it to send again.
+  let missing = 0;
+  for (const [date, meals] of Object.entries(entries)) {
+    for (const [meal, v] of Object.entries(meals)) {
+      if (!(fresh[date] && fresh[date][meal]) && !(`${date}|${meal}` in queue)) {
+        queue[`${date}|${meal}`] = v;
+        missing++;
+      }
+    }
+  }
+  // apply anything still waiting to sync (including edits made mid-request)
   for (const k of Object.keys(queue)) {
     const [date, meal] = k.split('|');
     fresh[date] = fresh[date] || {};
     if (queue[k]) fresh[date][meal] = queue[k]; else delete fresh[date][meal];
+    if (!Object.keys(fresh[date]).length) delete fresh[date];
   }
   entries = fresh;
-  save(K.entries, entries);
+  save(K.entries, entries); save(K.queue, queue);
   render();
+  return missing;
 }
 
 async function sync(full = false) {
@@ -305,7 +318,12 @@ async function sync(full = false) {
   status('Syncing…');
   try {
     await push();
-    if (full) await pull();
+    if (full && await pull()) {
+      // the sheet was missing some entries: resend them and check once more
+      await push();
+      const still = await pull();
+      if (still) { status(`${still} entr${still === 1 ? 'y is' : 'ies are'} on this phone but not saving to your sheet`); return; }
+    }
     status(`Synced ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}`);
   } catch (e) {
     const p = pendingCount();
