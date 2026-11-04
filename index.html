@@ -19,11 +19,15 @@
   --yes:#8AAB90;--no:#9C7379;--on:#24222D;--accent:#C9A0A6}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 24px)}
-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+/* Fit the whole app to the screen: the day card stretches or shrinks to fill what's left */
+html,body{height:100%;overflow:hidden}
+main{max-width:520px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 4px) 16px calc(env(safe-area-inset-bottom) + 8px)}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex:none}
 .brand{font-weight:750;font-size:18px}
 .iconbtn{border:0;background:transparent;color:var(--muted);font-size:24px;padding:8px 10px;border-radius:10px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:10px;flex:none}
+.card.day{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}
 .score-top{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
 .pct{font-size:46px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums}
 .pct small{font-size:16px;font-weight:600;color:var(--muted);margin-left:4px}
@@ -43,21 +47,23 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .cell{aspect-ratio:1/1.5;border-radius:3px;background:var(--empty);border:0;padding:0;cursor:pointer}
 .cell.Y{background:var(--yes)}
 .cell.N{background:var(--no)}
-.budget{margin-top:12px;font-size:15px;font-weight:600}
-.budget.over{color:var(--no)}.daynav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.budget{margin-top:10px;font-size:15px;font-weight:600}
+.budget.over{color:var(--no)}
+.daynav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex:none}
 .daynav button{border:1px solid var(--line);background:transparent;color:var(--ink);font-size:24px;width:44px;height:44px;border-radius:12px}
 .daynav button:disabled{opacity:.3}
 .dayt{text-align:center}
 .dayt .t{font-size:20px;font-weight:700}
-.meal{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+#meals{flex:0 1 296px;min-height:0;display:grid;grid-template-rows:repeat(4,minmax(0,1fr))}
+.meal{display:flex;align-items:center;gap:10px;padding:5px 0;border-top:1px solid var(--line);min-height:0}
 .meal:first-of-type{border-top:0}
 .meal .name{flex:1;font-size:18px;font-weight:600}
-.yn{width:88px;height:64px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--muted);font-size:24px;font-weight:800}
+.yn{width:88px;height:100%;max-height:64px;min-height:40px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--muted);font-size:24px;font-weight:800}
 .yn.y.on{background:var(--yes);border-color:var(--yes);color:var(--on)}
 .yn.n.on{background:var(--no);border-color:var(--no);color:var(--on)}
-.today{display:block;margin:12px auto 0;border:0;background:transparent;color:var(--accent);font-weight:600;font-size:15px;padding:8px}
+.today{display:block;flex:none;margin:4px auto 0;border:0;background:transparent;color:var(--accent);font-weight:600;font-size:15px;padding:8px}
 .today[hidden]{display:none}
-.status{text-align:center;font-size:13px;color:var(--muted);min-height:18px}
+.status{text-align:center;font-size:13px;color:var(--muted);min-height:18px;flex:none}
 dialog{border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--ink);width:min(92vw,440px);padding:20px}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog h2{margin:0 0 12px;font-size:20px}
@@ -87,7 +93,7 @@ input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px so
     <div class="budget" id="budget"></div>
   </section>
 
-  <section class="card" aria-label="Day">
+  <section class="card day" aria-label="Day">
     <div class="daynav">
       <button id="prev" aria-label="Previous day">‹</button>
       <div class="dayt"><div class="t" id="dayTitle"></div></div>
