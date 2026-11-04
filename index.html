@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24222D">
+<title>80/20 Meal Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..800&display=swap" rel="stylesheet">
+<style>
+/* Moody Rose palette: ink #24222D · wine #7B3947 · lavender #9E8FA8 · khaki #A59A7E · dusty rose #9C7379
+   + sage #5B7B63 for Y */
+:root{--bg:#EDE6E4;--card:#F8F4F3;--ink:#24222D;--muted:#6E6573;--line:#DDD3D5;--empty:#E3DAE0;
+  --yes:#5B7B63;--no:#7B3947;--on:#fff;--accent:#7B3947;--khaki:#A59A7E;--rose:#9C7379;--lav:#9E8FA8}
+@media (prefers-color-scheme: dark){:root{--bg:#24222D;--card:#2E2B38;--ink:#EFE8E6;--muted:#A79FAA;--line:#3D3948;--empty:#3A3645;
+  --yes:#8AAB90;--no:#9C7379;--on:#24222D;--accent:#C9A0A6}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 24px)}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.brand{font-weight:750;font-size:18px}
+.iconbtn{border:0;background:transparent;color:var(--muted);font-size:24px;padding:8px 10px;border-radius:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+.score-top{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.pct{font-size:46px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums}
+.pct small{font-size:16px;font-weight:600;color:var(--muted);margin-left:4px}
+.cyc{color:var(--muted);font-size:13px;text-align:right}
+.score{position:relative;transition:background .4s,border-color .4s}
+.score.win{border-color:var(--khaki);background:linear-gradient(135deg,var(--card) 50%,rgba(165,154,126,.22))}
+.pct.win .num{background:linear-gradient(100deg,var(--yes) 0%,var(--khaki) 30%,var(--rose) 50%,var(--khaki) 70%,var(--yes) 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 3.5s linear infinite}
+.pct.win small::after{content:" ✨"}
+.pct.pop{animation:pop .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes shimmer{to{background-position:-250% 0}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25) rotate(-3deg)}100%{transform:scale(1)}}
+.confetti{position:fixed;width:8px;height:12px;border-radius:2px;pointer-events:none;z-index:10}
+@media (prefers-reduced-motion: reduce){.pct.win .num{animation:none}.pct.pop{animation:none}}
+.stats{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0;font-size:14px;color:var(--muted)}
+.stats b{color:var(--ink);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(25,1fr);gap:2px}
+.cell{aspect-ratio:1/1.5;border-radius:3px;background:var(--empty);border:0;padding:0;cursor:pointer}
+.cell.Y{background:var(--yes)}
+.cell.N{background:var(--no)}
+.budget{margin-top:12px;font-size:15px;font-weight:600}
+.budget.over{color:var(--no)}.daynav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.daynav button{border:1px solid var(--line);background:transparent;color:var(--ink);font-size:24px;width:44px;height:44px;border-radius:12px}
+.daynav button:disabled{opacity:.3}
+.dayt{text-align:center}
+.dayt .t{font-size:20px;font-weight:700}
+.meal{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.meal:first-of-type{border-top:0}
+.meal .name{flex:1;font-size:18px;font-weight:600}
+.yn{width:88px;height:64px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--muted);font-size:24px;font-weight:800}
+.yn.y.on{background:var(--yes);border-color:var(--yes);color:var(--on)}
+.yn.n.on{background:var(--no);border-color:var(--no);color:var(--on)}
+.today{display:block;margin:12px auto 0;border:0;background:transparent;color:var(--accent);font-weight:600;font-size:15px;padding:8px}
+.today[hidden]{display:none}
+.status{text-align:center;font-size:13px;color:var(--muted);min-height:18px}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--ink);width:min(92vw,440px);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h2{margin:0 0 12px;font-size:20px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.btn{font:inherit;font-weight:600;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+#testMsg{font-size:13px;margin-top:10px;min-height:18px}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">80/20</div>
+    <button class="iconbtn" id="openSettings" aria-label="Settings">⚙︎</button>
+  </header>
+
+  <section class="card score" id="score" aria-label="Cycle score">
+    <div class="score-top">
+      <div class="pct" id="pct">—</div>
+      <div class="cyc" id="cyc"></div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="grid" id="grid" aria-label="100 meals in this cycle"></div>
+    <div class="budget" id="budget"></div>
+  </section>
+
+  <section class="card" aria-label="Day">
+    <div class="daynav">
+      <button id="prev" aria-label="Previous day">‹</button>
+      <div class="dayt"><div class="t" id="dayTitle"></div></div>
+      <button id="next" aria-label="Next day">›</button>
+    </div>
+    <div id="meals"></div>
+    <button class="today" id="todayBtn" hidden>Back to today</button>
+  </section>
+
+  <div class="status" id="status"></div>
+</main>
+
+<dialog id="settings">
+  <form method="dialog" id="settingsForm">
+    <h2>Settings</h2>
+    <label for="sUrl">Sheet connection URL</label>
+    <input id="sUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+    <div class="hint">From Apps Script after you publish it as a web app.</div>
+    <label for="sToken">Passphrase</label>
+    <input id="sToken" type="password" autocomplete="off">
+    <div class="hint">Must match TOKEN in the script.</div>
+    <label for="sAnchor">First day of cycle 1</label>
+    <input id="sAnchor" type="date">
+    <div class="hint">Cycles run 25 days (100 meals) from this date.</div>
+    <div id="testMsg"></div>
+    <div class="row">
+      <button type="button" class="btn" id="testBtn">Test</button>
+      <button type="button" class="btn" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn primary" id="saveBtn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const MEALS = ['Breakfast','Lunch','Snack','Dinner'];
+const CYCLE_DAYS = 25;
+const ALLOWANCE = CYCLE_DAYS * MEALS.length * 0.2; // 20 "N" meals per 100
+const K = {entries:'mt.entries', queue:'mt.queue', settings:'mt.settings'};
+
+const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+let entries  = load(K.entries, {});   // { "2026-11-04": { Breakfast: "Y", ... } }
+let queue    = load(K.queue, {});     // { "2026-11-04|Lunch": "Y" | "N" | "" }
+let settings = Object.assign({url:'', token:'', anchor:'2026-11-02'}, load(K.settings, {}));
+
+// ---- dates (local time, yyyy-mm-dd strings) ----
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate()+n); return iso(d); };
+const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
+const today = () => iso(new Date());
+const fmt = (s, opts) => parse(s).toLocaleDateString(undefined, opts);
+
+let current = today();
+
+function cycleFor(s) {
+  const k = Math.floor(diffDays(settings.anchor, s) / CYCLE_DAYS);
+  const start = addDays(settings.anchor, k * CYCLE_DAYS);
+  return { n: k + 1, start, end: addDays(start, CYCLE_DAYS - 1), day: diffDays(start, s) + 1 };
+}
+
+const getVal = (date, meal) => (entries[date] || {})[meal] || '';
+
+function setVal(date, meal, v) {
+  entries[date] = entries[date] || {};
+  if (v) entries[date][meal] = v; else delete entries[date][meal];
+  if (!Object.keys(entries[date]).length) delete entries[date];
+  queue[`${date}|${meal}`] = v;
+  save(K.entries, entries); save(K.queue, queue);
+  render();
+  sync();
+}
+
+// ---- render ----
+const $ = id => document.getElementById(id);
+let lastScore = {start: null, win: null};
+
+function celebrate() {
+  const el = $('pct');
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  try { navigator.vibrate && navigator.vibrate([30, 40, 60]); } catch {}
+  const r = el.getBoundingClientRect();
+  const x0 = r.left + r.width * 0.4, y0 = r.top + r.height / 2;
+  const colors = ['#5B7B63','#8AAB90','#A59A7E','#9C7379','#7B3947','#9E8FA8','#D59AA4'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti';
+    p.style.background = colors[i % colors.length];
+    p.style.left = x0 + 'px'; p.style.top = y0 + 'px';
+    document.body.appendChild(p);
+    const a = Math.random() * Math.PI * 2, d = 80 + Math.random() * 180;
+    const dx = Math.cos(a) * d, dy = Math.sin(a) * d - 60;
+    p.animate([
+      {transform: 'translate(0,0) rotate(0)', opacity: 1},
+      {transform: `translate(${dx}px,${dy}px) rotate(${Math.random()*360}deg)`, opacity: 1, offset: .5},
+      {transform: `translate(${dx*1.2}px,${dy + 260}px) rotate(${Math.random()*720}deg)`, opacity: 0}
+    ], {duration: 1400 + Math.random() * 600, easing: 'cubic-bezier(.2,.7,.4,1)'}).onfinish = () => p.remove();
+  }
+}
+
+function render() {
+  const t = today();
+  const c = cycleFor(current);
+  let y = 0, n = 0;
+  const grid = $('grid');
+  grid.innerHTML = '';
+  for (const meal of MEALS) {
+    for (let i = 0; i < CYCLE_DAYS; i++) {
+      const d = addDays(c.start, i);
+      const v = getVal(d, meal);
+      if (v === 'Y') y++; else if (v === 'N') n++;
+      const b = document.createElement('button');
+      b.className = 'cell' + (v ? ' ' + v : '');
+      b.title = `${fmt(d,{month:'short',day:'numeric'})} · ${meal}${v ? ' · ' + v : ''}`;
+      b.setAttribute('aria-label', b.title);
+      b.onclick = () => { current = d; render(); };
+      grid.appendChild(b);
+    }
+  }
+  const logged = y + n;
+  // round down so 79.7% shows 79%, not a false 80%
+  const pct = logged ? Math.floor(y / logged * 100) : null;
+  const win = logged > 0 && y / logged >= 0.8;
+  $('pct').innerHTML = pct !== null ? `<span class="num">${pct}%</span><small>on plan</small>` : '—';
+  $('pct').classList.toggle('win', win);
+  $('score').classList.toggle('win', win);
+  // celebrate when a tap moves this cycle from under 80 to 80+
+  if (win && lastScore.start === c.start && lastScore.win === false) celebrate();
+  lastScore = {start: c.start, win};
+  $('cyc').textContent = `${fmt(c.start,{month:'short',day:'numeric'})} – ${fmt(c.end,{month:'short',day:'numeric'})}`;
+  $('stats').innerHTML = `<span>Y <b>${y}</b></span><span>N <b>${n}</b></span><span>Logged <b>${logged}</b> of 100</span>`;
+  const left = ALLOWANCE - n;
+  const bud = $('budget');
+  bud.className = 'budget' + (left < 0 ? ' over' : '');
+  bud.textContent = left >= 0
+    ? `${left} of ${ALLOWANCE} N meals left this cycle`
+    : `${-left} N meal${left === -1 ? '' : 's'} past the ${ALLOWANCE} for this cycle`;
+
+  $('dayTitle').textContent = fmt(current, {weekday:'short', month:'short', day:'numeric'});  $('todayBtn').hidden = current === t;
+
+  const wrap = $('meals');
+  wrap.innerHTML = '';
+  for (const meal of MEALS) {
+    const v = getVal(current, meal);
+    const row = document.createElement('div');
+    row.className = 'meal';
+    row.innerHTML = `<div class="name">${meal}</div>`;
+    for (const opt of ['Y','N']) {
+      const b = document.createElement('button');
+      b.className = `yn ${opt.toLowerCase()}` + (v === opt ? ' on' : '');
+      b.textContent = opt;
+      b.setAttribute('aria-pressed', v === opt);
+      b.setAttribute('aria-label', `${meal} ${opt}`);
+      b.onclick = () => setVal(current, meal, v === opt ? '' : opt); // tap again to clear
+      row.appendChild(b);
+    }
+    wrap.appendChild(row);
+  }
+}
+
+// ---- sync with the Google Sheet (via Apps Script) ----
+const status = msg => { $('status').textContent = msg; };
+let busy = false;
+
+async function call(body, s = settings) {
+  const r = await fetch(s.url, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'}, // avoids a CORS preflight
+    body: JSON.stringify(Object.assign({token: s.token}, body))
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+
+function pendingCount() { return Object.keys(queue).length; }
+
+async function push() {
+  const keys = Object.keys(queue);
+  if (!keys.length) return;
+  const changes = keys.map(k => { const [date, meal] = k.split('|'); return {date, meal, value: queue[k]}; });
+  await call({action: 'save', changes});
+  for (const ch of changes) {
+    const k = `${ch.date}|${ch.meal}`;
+    if (queue[k] === ch.value) delete queue[k];
+  }
+  save(K.queue, queue);
+}
+
+async function pull() {
+  const j = await call({action: 'list'});
+  const fresh = {};
+  for (const e of j.entries) {
+    if (e.value !== 'Y' && e.value !== 'N') continue;
+    (fresh[e.date] = fresh[e.date] || {})[e.meal] = e.value;
+  }
+  // keep any edits made while this request was in flight
+  for (const k of Object.keys(queue)) {
+    const [date, meal] = k.split('|');
+    fresh[date] = fresh[date] || {};
+    if (queue[k]) fresh[date][meal] = queue[k]; else delete fresh[date][meal];
+  }
+  entries = fresh;
+  save(K.entries, entries);
+  render();
+}
+
+async function sync(full = false) {
+  if (!settings.url || !settings.token) { status('Not connected to your sheet yet · open ⚙︎ Settings'); return; }
+  if (busy) return;
+  busy = true;
+  status('Syncing…');
+  try {
+    await push();
+    if (full) await pull();
+    status(`Synced ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}`);
+  } catch (e) {
+    const p = pendingCount();
+    status(p ? `${p} change${p === 1 ? '' : 's'} saved on this phone, waiting to sync` : `Couldn’t reach your sheet: ${e.message}`);
+  } finally {
+    busy = false;
+  }
+}
+
+// ---- events ----
+$('prev').onclick = () => { current = addDays(current, -1); render(); };
+$('next').onclick = () => { current = addDays(current, 1); render(); };
+$('todayBtn').onclick = () => { current = today(); render(); };
+
+const dlg = $('settings');
+$('openSettings').onclick = () => {
+  $('sUrl').value = settings.url; $('sToken').value = settings.token; $('sAnchor').value = settings.anchor;
+  $('testMsg').textContent = '';
+  dlg.showModal();
+};
+$('cancelBtn').onclick = () => dlg.close();
+$('testBtn').onclick = async () => {
+  const s = {url: $('sUrl').value.trim(), token: $('sToken').value};
+  $('testMsg').textContent = 'Testing…';
+  try { const j = await call({action: 'list'}, s); $('testMsg').textContent = `Connected · ${j.entries.length} entries in your sheet`; }
+  catch (e) { $('testMsg').textContent = `Not connected: ${e.message}`; }
+};
+$('settingsForm').onsubmit = () => {
+  settings = {url: $('sUrl').value.trim(), token: $('sToken').value, anchor: $('sAnchor').value || settings.anchor};
+  save(K.settings, settings);
+  render();
+  sync(true);
+};
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { render(); sync(true); }
+});
+window.addEventListener('online', () => sync(true));
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+render();
+sync(true);
+</script>
+</body>
+</html>
