@@ -207,6 +207,38 @@ const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y
 const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate()+n); return iso(d); };
 const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
 const today = () => iso(new Date());
+
+// Dates must be yyyy-mm-dd. Anything else (e.g. "11/3/2026" from the sheet) is converted when
+// it's clearly a date, and otherwise dropped, so one odd row can't break the math.
+const MEAL_SET = new Set(['Breakfast','Lunch','Snack','Dinner']);
+function normDate(s) {
+  s = String(s || '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);           // US-style M/D/YYYY
+  if (m) return `${m[3]}-${pad(m[1])}-${pad(m[2])}`;
+  return null;
+}
+function cleanEntries(src) {
+  const out = {};
+  for (const [d, meals] of Object.entries(src || {})) {
+    const nd = normDate(d);
+    if (!nd || isNaN(parse(nd))) continue;
+    for (const [meal, v] of Object.entries(meals || {})) {
+      if (MEAL_SET.has(meal) && (v === 'Y' || v === 'N')) (out[nd] = out[nd] || {})[meal] = v;
+    }
+  }
+  return out;
+}
+entries = cleanEntries(entries);
+for (const k of Object.keys(queue)) {
+  const [d, meal] = k.split('|');
+  const nd = normDate(d);
+  if (!nd || !MEAL_SET.has(meal)) { delete queue[k]; continue; }
+  if (nd !== d) { queue[`${nd}|${meal}`] = queue[k]; delete queue[k]; }
+}
+if (!normDate(settings.anchor)) settings.anchor = '2026-11-02';
+save(K.entries, entries); save(K.queue, queue);
 const fmt = (s, opts) => parse(s).toLocaleDateString(undefined, opts);
 
 let current = today();
@@ -508,8 +540,9 @@ async function pull() {
   const j = await call({action: 'list'});
   const fresh = {};
   for (const e of j.entries) {
-    if (e.value !== 'Y' && e.value !== 'N') continue;
-    (fresh[e.date] = fresh[e.date] || {})[e.meal] = e.value;
+    const d = normDate(e.date);
+    if (!d || !MEAL_SET.has(e.meal) || (e.value !== 'Y' && e.value !== 'N')) continue;
+    (fresh[d] = fresh[d] || {})[e.meal] = e.value;
   }
   // Never drop an entry that's on this phone but missing from the sheet:
   // keep it and queue it to send again.
