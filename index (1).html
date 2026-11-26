@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24222D">
+<title>80/20 Meal Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..800&display=swap" rel="stylesheet">
+<style>
+/* Moody Rose palette: ink #24222D · wine #7B3947 · lavender #9E8FA8 · khaki #A59A7E · dusty rose #9C7379
+   + sage #5B7B63 for Y */
+:root{--bg:#EDE6E4;--card:#F8F4F3;--ink:#24222D;--muted:#6E6573;--line:#DDD3D5;--empty:#E3DAE0;
+  --yes:#5B7B63;--no:#7B3947;--on:#fff;--accent:#7B3947;--khaki:#A59A7E;--rose:#9C7379;--lav:#9E8FA8}
+@media (prefers-color-scheme: dark){:root{--bg:#24222D;--card:#2E2B38;--ink:#EFE8E6;--muted:#A79FAA;--line:#3D3948;--empty:#3A3645;
+  --yes:#8AAB90;--no:#9C7379;--on:#24222D;--accent:#C9A0A6}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+/* Fit the whole app to the screen: the day card stretches or shrinks to fill what's left */
+html,body{height:100%;overflow:hidden}
+main{max-width:520px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 4px) 16px calc(env(safe-area-inset-bottom) + 8px)}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex:none}
+.brand{font-weight:750;font-size:18px}
+.iconbtn{border:0;background:transparent;color:var(--muted);font-size:24px;padding:8px 10px;border-radius:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:10px;flex:none}
+.card.day{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}
+.score-top{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.pct{font-size:46px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums}
+.pct small{font-size:16px;font-weight:600;color:var(--muted);margin-left:4px}
+.cyc{color:var(--muted);font-size:13px;text-align:right}
+.score{position:relative;transition:background .4s,border-color .4s}
+.score.win{border-color:var(--khaki);background:linear-gradient(135deg,var(--card) 50%,rgba(165,154,126,.22))}
+.pct.win .num{background:linear-gradient(100deg,var(--yes) 0%,var(--khaki) 30%,var(--rose) 50%,var(--khaki) 70%,var(--yes) 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 3.5s linear infinite}
+.pct.win small::after{content:" ✨"}
+.pct.pop{animation:pop .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes shimmer{to{background-position:-250% 0}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25) rotate(-3deg)}100%{transform:scale(1)}}
+.confetti{position:fixed;width:8px;height:12px;border-radius:2px;pointer-events:none;z-index:10}
+@media (prefers-reduced-motion: reduce){.pct.win .num{animation:none}.pct.pop{animation:none}}
+.stats{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0;font-size:14px;color:var(--muted)}
+.stats b{color:var(--ink);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(25,1fr);gap:2px}
+.cell{aspect-ratio:1/1.5;border-radius:3px;background:var(--empty);border:0;padding:0;cursor:pointer}
+.cell.Y{background:var(--yes)}
+.cell.N{background:var(--no)}
+.budget{margin-top:10px;font-size:15px;font-weight:600}
+.budget.over{color:var(--no)}
+.daynav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex:none}
+.daynav button{border:1px solid var(--line);background:transparent;color:var(--ink);font-size:24px;width:44px;height:44px;border-radius:12px}
+.daynav button:disabled{opacity:.3}
+.dayt{text-align:center}
+.dayt .t{font-size:20px;font-weight:700}
+#meals{flex:0 1 296px;min-height:0;display:grid;grid-template-rows:repeat(4,minmax(0,1fr))}
+.meal{display:flex;align-items:center;gap:10px;padding:5px 0;border-top:1px solid var(--line);min-height:0}
+.meal:first-of-type{border-top:0}
+.meal .name{flex:1;font-size:18px;font-weight:600}
+.yn{width:88px;height:100%;max-height:64px;min-height:40px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--muted);font-size:24px;font-weight:800}
+.yn.y.on{background:var(--yes);border-color:var(--yes);color:var(--on)}
+.yn.n.on{background:var(--no);border-color:var(--no);color:var(--on)}
+.today{display:block;flex:none;margin:4px auto 0;border:0;background:transparent;color:var(--accent);font-weight:600;font-size:15px;padding:8px}
+.today[hidden]{display:none}
+.status{text-align:center;font-size:13px;color:var(--muted);min-height:18px;flex:none}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--ink);width:min(92vw,440px);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h2{margin:0 0 12px;font-size:20px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.btn{font:inherit;font-weight:600;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+#testMsg{font-size:13px;margin-top:10px;min-height:18px}
+.hdr-actions{display:flex;align-items:center}
+.iconbtn svg{display:block;width:22px;height:22px}
+.warn{font-size:12px;color:var(--accent);margin-top:6px;font-weight:600}
+.warn[hidden]{display:none}
+/* ---- cycles view ---- */
+.cycles{position:fixed;inset:0;z-index:5;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:calc(env(safe-area-inset-top) + 4px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+.cycles[hidden]{display:none}
+.cwrap{max-width:520px;margin:0 auto}
+.chead{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:6px;position:sticky;top:0;background:var(--bg);padding:2px 0 6px;z-index:1}
+.chead .t{text-align:center;font-weight:750;font-size:18px}
+.chead .iconbtn{font-size:28px;line-height:1;padding:4px 8px;color:var(--ink)}
+.ccard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px 14px;margin-bottom:10px}
+.ctop{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px}
+.cname{font-weight:700;font-size:15px}
+.cpct{font-size:28px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums}
+.cpct.none{color:var(--muted);font-weight:600}
+/* 80%+ border: a 2px sage → khaki → rose gradient ring with a soft glow */
+.ccard.win,.score.win{border:2px solid transparent;
+  background:linear-gradient(135deg,transparent 50%,rgba(165,154,126,.22)) padding-box,
+             linear-gradient(var(--card),var(--card)) padding-box,
+             linear-gradient(120deg,var(--yes),var(--khaki) 50%,var(--rose)) border-box;
+  box-shadow:0 0 0 4px rgba(165,154,126,.18),0 6px 22px rgba(165,154,126,.35)}
+/* trend chart */
+.trend{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px 8px;margin-bottom:14px}
+.trend .tt{font-weight:700;font-size:15px;margin-bottom:2px}
+.trend .ts{font-size:12px;color:var(--muted);margin-bottom:6px}
+.trend svg{display:block;width:100%;touch-action:pan-y}
+.trend .axis{font-size:11px;fill:var(--muted);font-family:inherit}
+.trend .lbl{font-size:12px;font-weight:700;fill:var(--ink);font-family:inherit}
+.trend .ref{font-size:11px;font-weight:700;fill:var(--muted);font-family:inherit}
+.trend .empty{font-size:14px;color:var(--muted);padding:18px 0 14px;text-align:center}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.35;white-space:nowrap;transform:translate(-50%,-100%);z-index:2}
+.tip b{font-size:14px}
+.tip[hidden]{display:none}
+.csum{text-align:center;font-size:16px;font-weight:600;color:var(--muted);margin:2px 0 14px}
+.csum .big{font-size:30px;font-weight:780;color:var(--ink);margin-right:2px;font-variant-numeric:tabular-nums}
+.ccard.win .cpct .num{background:linear-gradient(100deg,var(--yes),var(--khaki) 55%,var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ccard.win .cpct::after{content:" ✨";font-size:18px}
+.mgrid{display:grid;grid-template-columns:repeat(25,1fr);gap:2px}
+.mcell{aspect-ratio:1/1.5;border-radius:2px;background:var(--empty)}
+.mcell.Y{background:var(--yes)}
+.mcell.N{background:var(--no)}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">80/20</div>
+    <div class="hdr-actions">
+      <button class="iconbtn" id="openCycles" aria-label="All cycles">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 17l5-5 4 3.5 7.5-8"/><path d="M15 7.5h5v5"/></svg>
+      </button>
+      <button class="iconbtn" id="openSettings" aria-label="Settings">⚙︎</button>
+    </div>
+  </header>
+
+  <section class="card score" id="score" aria-label="Cycle score">
+    <div class="score-top">
+      <div class="pct" id="pct">—</div>
+      <div class="cyc" id="cyc"></div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="grid" id="grid" aria-label="100 meals in this cycle"></div>
+    <div class="budget" id="budget"></div>
+  </section>
+
+  <section class="card day" aria-label="Day">
+    <div class="daynav">
+      <button id="prev" aria-label="Previous day">‹</button>
+      <div class="dayt"><div class="t" id="dayTitle"></div></div>
+      <button id="next" aria-label="Next day">›</button>
+    </div>
+    <div id="meals"></div>
+    <button class="today" id="todayBtn" hidden>Back to today</button>
+  </section>
+
+  <div class="status" id="status"></div>
+</main>
+
+<section class="cycles" id="cyclesView" hidden aria-label="All cycles">
+  <div class="cwrap">
+    <div class="chead">
+      <button class="iconbtn" id="closeCycles" aria-label="Back">‹</button>
+      <div class="t">Cycles</div>
+      <span></span>
+    </div>
+    <div id="cycleList"></div>
+  </div>
+</section>
+
+<dialog id="settings">
+  <form method="dialog" id="settingsForm">
+    <h2>Settings</h2>
+    <label for="sUrl">Sheet connection URL</label>
+    <input id="sUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+    <div class="hint">From Apps Script after you publish it as a web app.</div>
+    <label for="sToken">Passphrase</label>
+    <input id="sToken" type="password" autocomplete="off">
+    <div class="hint">Must match TOKEN in the script.</div>
+    <label for="sAnchor">First day of cycle 1</label>
+    <input id="sAnchor" type="date">
+    <div class="hint">Cycles run 25 days (100 meals) from this date.</div>
+    <div class="warn" id="anchorWarn" hidden>Changing this regroups all your cycles, past and current. Your entries aren’t affected, and changing it back restores everything.</div>
+    <div id="testMsg"></div>
+    <div class="row">
+      <button type="button" class="btn" id="testBtn">Test</button>
+      <button type="button" class="btn" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn primary" id="saveBtn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const MEALS = ['Breakfast','Lunch','Snack','Dinner'];
+const CYCLE_DAYS = 25;
+const ALLOWANCE = CYCLE_DAYS * MEALS.length * 0.2; // 20 "N" meals per 100
+const K = {entries:'mt.entries', queue:'mt.queue', settings:'mt.settings'};
+
+const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+let entries  = load(K.entries, {});   // { "2026-11-04": { Breakfast: "Y", ... } }
+let queue    = load(K.queue, {});     // { "2026-11-04|Lunch": "Y" | "N" | "" }
+let settings = Object.assign({url:'', token:'', anchor:'2026-11-02'}, load(K.settings, {}));
+
+// ---- dates (local time, yyyy-mm-dd strings) ----
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate()+n); return iso(d); };
+const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
+const today = () => iso(new Date());
+
+// Dates must be yyyy-mm-dd. Anything else (e.g. "11/3/2026" from the sheet) is converted when
+// it's clearly a date, and otherwise dropped, so one odd row can't break the math.
+const MEAL_SET = new Set(['Breakfast','Lunch','Snack','Dinner']);
+function normDate(s) {
+  s = String(s || '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);           // US-style M/D/YYYY
+  if (m) return `${m[3]}-${pad(m[1])}-${pad(m[2])}`;
+  return null;
+}
+function cleanEntries(src) {
+  const out = {};
+  for (const [d, meals] of Object.entries(src || {})) {
+    const nd = normDate(d);
+    if (!nd || isNaN(parse(nd))) continue;
+    for (const [meal, v] of Object.entries(meals || {})) {
+      if (MEAL_SET.has(meal) && (v === 'Y' || v === 'N')) (out[nd] = out[nd] || {})[meal] = v;
+    }
+  }
+  return out;
+}
+entries = cleanEntries(entries);
+for (const k of Object.keys(queue)) {
+  const [d, meal] = k.split('|');
+  const nd = normDate(d);
+  if (!nd || !MEAL_SET.has(meal)) { delete queue[k]; continue; }
+  if (nd !== d) { queue[`${nd}|${meal}`] = queue[k]; delete queue[k]; }
+}
+if (!normDate(settings.anchor)) settings.anchor = '2026-11-02';
+save(K.entries, entries); save(K.queue, queue);
+const fmt = (s, opts) => parse(s).toLocaleDateString(undefined, opts);
+
+let current = today();
+
+function cycleFor(s) {
+  const k = Math.floor(diffDays(settings.anchor, s) / CYCLE_DAYS);
+  const start = addDays(settings.anchor, k * CYCLE_DAYS);
+  return { n: k + 1, start, end: addDays(start, CYCLE_DAYS - 1), day: diffDays(start, s) + 1 };
+}
+
+const getVal = (date, meal) => (entries[date] || {})[meal] || '';
+
+function setVal(date, meal, v) {
+  entries[date] = entries[date] || {};
+  if (v) entries[date][meal] = v; else delete entries[date][meal];
+  if (!Object.keys(entries[date]).length) delete entries[date];
+  queue[`${date}|${meal}`] = v;
+  save(K.entries, entries); save(K.queue, queue);
+  render();
+  sync();
+}
+
+// ---- render ----
+const $ = id => document.getElementById(id);
+let lastScore = {start: null, win: null};
+
+function celebrate() {
+  const el = $('pct');
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  try { navigator.vibrate && navigator.vibrate([30, 40, 60]); } catch {}
+  const r = el.getBoundingClientRect();
+  const x0 = r.left + r.width * 0.4, y0 = r.top + r.height / 2;
+  const colors = ['#5B7B63','#8AAB90','#A59A7E','#9C7379','#7B3947','#9E8FA8','#D59AA4'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti';
+    p.style.background = colors[i % colors.length];
+    p.style.left = x0 + 'px'; p.style.top = y0 + 'px';
+    document.body.appendChild(p);
+    const a = Math.random() * Math.PI * 2, d = 80 + Math.random() * 180;
+    const dx = Math.cos(a) * d, dy = Math.sin(a) * d - 60;
+    p.animate([
+      {transform: 'translate(0,0) rotate(0)', opacity: 1},
+      {transform: `translate(${dx}px,${dy}px) rotate(${Math.random()*360}deg)`, opacity: 1, offset: .5},
+      {transform: `translate(${dx*1.2}px,${dy + 260}px) rotate(${Math.random()*720}deg)`, opacity: 0}
+    ], {duration: 1400 + Math.random() * 600, easing: 'cubic-bezier(.2,.7,.4,1)'}).onfinish = () => p.remove();
+  }
+}
+
+function render() {
+  const t = today();
+  const c = cycleFor(current);
+  let y = 0, n = 0;
+  const grid = $('grid');
+  grid.innerHTML = '';
+  for (const meal of MEALS) {
+    for (let i = 0; i < CYCLE_DAYS; i++) {
+      const d = addDays(c.start, i);
+      const v = getVal(d, meal);
+      if (v === 'Y') y++; else if (v === 'N') n++;
+      const b = document.createElement('button');
+      b.className = 'cell' + (v ? ' ' + v : '');
+      b.title = `${fmt(d,{month:'short',day:'numeric'})} · ${meal}${v ? ' · ' + v : ''}`;
+      b.setAttribute('aria-label', b.title);
+      b.onclick = () => { current = d; render(); };
+      grid.appendChild(b);
+    }
+  }
+  const logged = y + n;
+  // round down so 79.7% shows 79%, not a false 80%
+  const pct = logged ? Math.floor(y / logged * 100) : null;
+  const win = logged > 0 && y / logged >= 0.8;
+  $('pct').innerHTML = pct !== null ? `<span class="num">${pct}%</span><small>on plan</small>` : '—';
+  $('pct').classList.toggle('win', win);
+  $('score').classList.toggle('win', win);
+  // celebrate when a tap moves this cycle from under 80 to 80+
+  if (win && lastScore.start === c.start && lastScore.win === false) celebrate();
+  lastScore = {start: c.start, win};
+  $('cyc').textContent = `${fmt(c.start,{month:'short',day:'numeric'})} – ${fmt(c.end,{month:'short',day:'numeric'})}`;
+  $('stats').innerHTML = `<span>Y <b>${y}</b></span><span>N <b>${n}</b></span><span>Logged <b>${logged}</b> of 100</span>`;
+  const left = ALLOWANCE - n;
+  const bud = $('budget');
+  bud.className = 'budget' + (left < 0 ? ' over' : '');
+  bud.textContent = left >= 0
+    ? `${left} of ${ALLOWANCE} N meals left this cycle`
+    : `${-left} N meal${left === -1 ? '' : 's'} past the ${ALLOWANCE} for this cycle`;
+
+  $('dayTitle').textContent = fmt(current, {weekday:'short', month:'short', day:'numeric'});
+  $('todayBtn').hidden = current === t;
+  if (!$('cyclesView').hidden) renderCycles();
+
+  const wrap = $('meals');
+  wrap.innerHTML = '';
+  for (const meal of MEALS) {
+    const v = getVal(current, meal);
+    const row = document.createElement('div');
+    row.className = 'meal';
+    row.innerHTML = `<div class="name">${meal}</div>`;
+    for (const opt of ['Y','N']) {
+      const b = document.createElement('button');
+      b.className = `yn ${opt.toLowerCase()}` + (v === opt ? ' on' : '');
+      b.textContent = opt;
+      b.setAttribute('aria-pressed', v === opt);
+      b.setAttribute('aria-label', `${meal} ${opt}`);
+      b.onclick = () => setVal(current, meal, v === opt ? '' : opt); // tap again to clear
+      row.appendChild(b);
+    }
+    wrap.appendChild(row);
+  }
+}
+
+// ---- cycles view ----
+const cycleIndex = s => Math.floor(diffDays(settings.anchor, s) / CYCLE_DAYS);
+
+// Always show the year: "Nov 2 – Nov 26, 2026", or "Dec 22, 2026 – Jan 15, 2027" when it spans two
+function cycleName(start, end) {
+  const md = {month: 'short', day: 'numeric'}, mdy = {...md, year: 'numeric'};
+  const spans = parse(start).getFullYear() !== parse(end).getFullYear();
+  return `${fmt(start, spans ? mdy : md)} – ${fmt(end, mdy)}`;
+}
+
+function renderCycles() {
+  const dates = Object.keys(entries);
+  const ks = [0, cycleIndex(today()), ...dates.map(cycleIndex)];
+  const kMin = Math.min(...ks), kMax = Math.max(...ks);
+  const list = $('cycleList');
+  list.innerHTML = '';
+  const sum = document.createElement('div');
+  sum.className = 'csum';
+  list.appendChild(sum);
+  const trend = document.createElement('div');
+  trend.className = 'trend';
+  list.appendChild(trend);
+  const points = [];                             // oldest → newest, for the chart
+  const kNow = cycleIndex(today());
+  let tracked = 0, wins = 0;
+  for (let k = kMax; k >= kMin; k--) {           // newest first
+    const start = addDays(settings.anchor, k * CYCLE_DAYS);
+    const end = addDays(start, CYCLE_DAYS - 1);
+    let y = 0, n = 0;
+    const grid = document.createElement('div');
+    grid.className = 'mgrid';
+    for (const meal of MEALS) {
+      for (let i = 0; i < CYCLE_DAYS; i++) {
+        const v = getVal(addDays(start, i), meal);
+        if (v === 'Y') y++; else if (v === 'N') n++;
+        const c = document.createElement('div');
+        c.className = 'mcell' + (v ? ' ' + v : '');
+        grid.appendChild(c);
+      }
+    }
+    const logged = y + n;
+    const win = logged > 0 && y / logged >= 0.8;
+    if (logged) tracked++;
+    if (win) wins++;
+    points.unshift({start, end, pct: logged ? y / logged * 100 : null, current: k === kNow});
+    const card = document.createElement('div');
+    card.className = 'ccard' + (win ? ' win' : '');
+    card.innerHTML = `<div class="ctop"><div class="cname">${cycleName(start, end)}</div>`
+      + (logged ? `<div class="cpct"><span class="num">${Math.floor(y / logged * 100)}%</span></div>`
+                : `<div class="cpct none">—</div>`)
+      + `</div>`;
+    card.setAttribute('aria-label', `${cycleName(start, end)}: ${logged ? Math.floor(y / logged * 100) + '% on plan' : 'no entries'}`);
+    card.appendChild(grid);
+    list.appendChild(card);
+  }
+  // empty cycles aren't counted; the current cycle is, once it has entries
+  sum.innerHTML = `<span class="big">${wins}</span> of ${tracked} cycle${tracked === 1 ? '' : 's'} 80%+${wins ? ' ✨' : ''}`;
+  drawTrend(trend, points);
+}
+
+// Line chart of % on plan per cycle. Empty cycles leave a gap; the current cycle is a hollow dot.
+function drawTrend(box, pts) {
+  box.innerHTML = '<div class="tt">% on plan by cycle</div>';
+  const data = pts.filter(p => p.pct !== null);
+  if (data.length < 2) {
+    box.innerHTML += '<div class="empty">Your trend line appears once you log a meal in your second cycle.</div>';
+    return;
+  }
+  box.innerHTML += '<div class="ts">Tap the chart to see each cycle</div>';
+  const W = Math.max(260, box.clientWidth - 28), H = 170;
+  const m = {l: 30, r: 44, t: 12, b: 22};   // right margin fits a "100%" end label
+  const lo = Math.max(0, Math.min(70, Math.floor((Math.min(...data.map(p => p.pct)) - 5) / 10) * 10));
+  const xs = i => m.l + (pts.length === 1 ? 0 : i * (W - m.l - m.r) / (pts.length - 1));
+  const ys = v => m.t + (100 - v) * (H - m.t - m.b) / (100 - lo);
+  const css = getComputedStyle(document.documentElement);
+  const line = css.getPropertyValue('--yes').trim(), card = css.getPropertyValue('--card').trim();
+  const grid = css.getPropertyValue('--line').trim(), muted = css.getPropertyValue('--muted').trim();
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Percent on plan for each cycle">`;
+  // gridlines + y ticks
+  for (let v = lo; v <= 100; v += lo <= 40 ? 20 : 10) {
+    if (v === 80) continue;
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${ys(v)}" y2="${ys(v)}" stroke="${grid}" stroke-width="1"/>`
+      + `<text class="axis" x="${m.l - 6}" y="${ys(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  // 80% target line
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${ys(80)}" y2="${ys(80)}" stroke="${muted}" stroke-width="1.5" stroke-dasharray="4 4"/>`
+    + `<text class="ref" x="${m.l - 6}" y="${ys(80) + 4}" text-anchor="end">80</text>`;
+  // line segments, broken at empty cycles
+  let d = '';
+  pts.forEach((p, i) => {
+    if (p.pct === null) return;
+    const prev = pts[i - 1];
+    d += `${prev && prev.pct !== null ? 'L' : 'M'}${xs(i).toFixed(1)},${ys(p.pct).toFixed(1)}`;
+  });
+  s += `<path d="${d}" fill="none" stroke="${line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  // markers with a surface-colored ring
+  const r = pts.length > 30 ? 3 : 4;
+  pts.forEach((p, i) => {
+    if (p.pct === null) return;
+    s += p.current
+      ? `<circle cx="${xs(i)}" cy="${ys(p.pct)}" r="${r + 0.5}" fill="${card}" stroke="${line}" stroke-width="2"/>`
+      : `<circle cx="${xs(i)}" cy="${ys(p.pct)}" r="${r}" fill="${line}" stroke="${card}" stroke-width="2" paint-order="stroke"/>`;
+  });
+  // label only the latest value
+  const li = pts.map(p => p.pct !== null).lastIndexOf(true);
+  s += `<text class="lbl" x="${xs(li) + 8}" y="${ys(pts[li].pct) + 4}">${Math.floor(pts[li].pct)}%</text>`;
+  // x labels: first and last cycle start
+  // month + year ("Nov '26"); falls back to month + day ("Nov 2", "Nov 27") when both land in the same month
+  const mon = p => fmt(p.start, {month: 'short', year: '2-digit'}).replace(' ', " '");
+  const first = pts[0], last = pts[pts.length - 1];
+  const same = mon(first) === mon(last);
+  const xl = p => same ? fmt(p.start, {month: 'short', day: 'numeric'}) : mon(p);
+  s += `<text class="axis" x="${xs(0)}" y="${H - 4}" text-anchor="start">${xl(first)}</text>`
+    + `<text class="axis" x="${xs(pts.length - 1)}" y="${H - 4}" text-anchor="end">${xl(last)}</text>`;
+  s += `<line class="xh" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="${muted}" stroke-width="1" visibility="hidden"/>`;
+  s += `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/></svg>`;
+  box.insertAdjacentHTML('beforeend', s + '<div class="tip" hidden></div>');
+
+  // tap / hover: crosshair + tooltip on the nearest cycle
+  const svg = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svg.querySelector('.xh');
+  const show = ev => {
+    const rect = svg.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) * W / rect.width;
+    let best = -1, bd = Infinity;
+    pts.forEach((p, i) => { const dd = Math.abs(xs(i) - x); if (dd < bd) { bd = dd; best = i; } });
+    const p = pts[best];
+    xh.setAttribute('x1', xs(best)); xh.setAttribute('x2', xs(best)); xh.setAttribute('visibility', 'visible');
+    tip.innerHTML = `${cycleName(p.start, p.end)}<br><b>${p.pct === null ? 'No entries' : Math.floor(p.pct) + '% on plan'}</b>${p.current ? ' · in progress' : ''}`;
+    const brect = box.getBoundingClientRect();     // tooltip is positioned inside the chart card
+    const px = rect.left - brect.left + xs(best) * rect.width / W;
+    const py = rect.top - brect.top + (p.pct === null ? ys(100) : ys(p.pct)) * rect.height / H - 10;
+    tip.hidden = false;
+    const half = tip.offsetWidth / 2;
+    tip.style.left = Math.min(Math.max(px, half + 4), box.clientWidth - half - 4) + 'px';
+    tip.style.top = Math.max(py, tip.offsetHeight + 2) + 'px';
+  };
+  const hide = () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); };
+  svg.addEventListener('pointerdown', show);
+  svg.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) show(e); });
+  svg.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+  hideTip = hide;
+}
+let hideTip = () => {};
+
+function openCycles() {
+  $('cyclesView').hidden = false;               // show first so the chart can measure its width
+  renderCycles();
+  $('cyclesView').scrollTop = 0;
+  try { history.pushState({view: 'cycles'}, ''); } catch {}
+}
+function closeCycles() { $('cyclesView').hidden = true; }
+window.addEventListener('resize', () => { if (!$('cyclesView').hidden) renderCycles(); });
+$('cyclesView').addEventListener('scroll', () => hideTip(), {passive: true});
+// tapping outside the chart hides its tooltip
+$('cyclesView').addEventListener('pointerdown', e => { if (!e.target.closest('.trend svg')) hideTip(); });
+
+// ---- sync with the Google Sheet (via Apps Script) ----
+const status = msg => { $('status').textContent = msg; };
+let busy = false;
+
+async function call(body, s = settings) {
+  const r = await fetch(s.url, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'}, // avoids a CORS preflight
+    body: JSON.stringify(Object.assign({token: s.token}, body))
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+
+function pendingCount() { return Object.keys(queue).length; }
+
+async function push() {
+  const keys = Object.keys(queue);
+  if (!keys.length) return;
+  const changes = keys.map(k => { const [date, meal] = k.split('|'); return {date, meal, value: queue[k]}; });
+  await call({action: 'save', changes});
+  for (const ch of changes) {
+    const k = `${ch.date}|${ch.meal}`;
+    if (queue[k] === ch.value) delete queue[k];
+  }
+  save(K.queue, queue);
+}
+
+async function pull() {
+  const j = await call({action: 'list'});
+  const fresh = {};
+  for (const e of j.entries) {
+    const d = normDate(e.date);
+    if (!d || !MEAL_SET.has(e.meal) || (e.value !== 'Y' && e.value !== 'N')) continue;
+    (fresh[d] = fresh[d] || {})[e.meal] = e.value;
+  }
+  // Never drop an entry that's on this phone but missing from the sheet:
+  // keep it and queue it to send again.
+  let missing = 0;
+  for (const [date, meals] of Object.entries(entries)) {
+    for (const [meal, v] of Object.entries(meals)) {
+      if (!(fresh[date] && fresh[date][meal]) && !(`${date}|${meal}` in queue)) {
+        queue[`${date}|${meal}`] = v;
+        missing++;
+      }
+    }
+  }
+  // apply anything still waiting to sync (including edits made mid-request)
+  for (const k of Object.keys(queue)) {
+    const [date, meal] = k.split('|');
+    fresh[date] = fresh[date] || {};
+    if (queue[k]) fresh[date][meal] = queue[k]; else delete fresh[date][meal];
+    if (!Object.keys(fresh[date]).length) delete fresh[date];
+  }
+  entries = fresh;
+  save(K.entries, entries); save(K.queue, queue);
+  render();
+  return missing;
+}
+
+async function sync(full = false) {
+  if (!settings.url || !settings.token) { status('Not connected to your sheet yet · open ⚙︎ Settings'); return; }
+  if (busy) return;
+  busy = true;
+  status('Syncing…');
+  try {
+    await push();
+    if (full && await pull()) {
+      // the sheet was missing some entries: resend them and check once more
+      await push();
+      const still = await pull();
+      if (still) { status(`${still} entr${still === 1 ? 'y is' : 'ies are'} on this phone but not saving to your sheet`); return; }
+    }
+    status(`Synced ${new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}`);
+  } catch (e) {
+    const p = pendingCount();
+    // always show why it failed, e.g. "Wrong passphrase"
+    const why = /JSON|Unexpected token/.test(e.message) ? 'the script returned an error page' : e.message;
+    status(p ? `${p} change${p === 1 ? '' : 's'} saved on this phone · not synced: ${why}` : `Couldn’t reach your sheet: ${why}`);
+  } finally {
+    busy = false;
+  }
+}
+
+// ---- events ----
+$('prev').onclick = () => { current = addDays(current, -1); render(); };
+$('next').onclick = () => { current = addDays(current, 1); render(); };
+$('todayBtn').onclick = () => { current = today(); render(); };
+
+$('openCycles').onclick = openCycles;
+// the on-screen back arrow and Android's back gesture both return to the main screen
+$('closeCycles').onclick = () => { if (history.state && history.state.view === 'cycles') history.back(); else closeCycles(); };
+window.addEventListener('popstate', closeCycles);
+
+const dlg = $('settings');
+$('openSettings').onclick = () => {
+  $('sUrl').value = settings.url; $('sToken').value = settings.token; $('sAnchor').value = settings.anchor;
+  $('testMsg').textContent = '';
+  $('anchorWarn').hidden = true;
+  dlg.showModal();
+};
+$('sAnchor').addEventListener('input', () => {
+  $('anchorWarn').hidden = !$('sAnchor').value || $('sAnchor').value === settings.anchor || !Object.keys(entries).length;
+});
+$('cancelBtn').onclick = () => dlg.close();
+$('testBtn').onclick = async () => {
+  const s = {url: $('sUrl').value.trim(), token: $('sToken').value};
+  $('testMsg').textContent = 'Testing…';
+  try { const j = await call({action: 'list'}, s); $('testMsg').textContent = `Connected · ${j.entries.length} entries in your sheet`; }
+  catch (e) { $('testMsg').textContent = `Not connected: ${e.message}`; }
+};
+$('settingsForm').onsubmit = () => {
+  settings = {url: $('sUrl').value.trim(), token: $('sToken').value, anchor: $('sAnchor').value || settings.anchor};
+  save(K.settings, settings);
+  render();
+  sync(true);
+};
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { render(); sync(true); }
+});
+window.addEventListener('online', () => sync(true));
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+render();
+sync(true);
+</script>
+</body>
+</html>
