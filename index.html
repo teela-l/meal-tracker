@@ -74,13 +74,61 @@ input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px so
 .btn{font:inherit;font-weight:600;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
 #testMsg{font-size:13px;margin-top:10px;min-height:18px}
+.hdr-actions{display:flex;align-items:center}
+.iconbtn svg{display:block;width:22px;height:22px}
+.warn{font-size:12px;color:var(--accent);margin-top:6px;font-weight:600}
+.warn[hidden]{display:none}
+/* ---- cycles view ---- */
+.cycles{position:fixed;inset:0;z-index:5;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:calc(env(safe-area-inset-top) + 4px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+.cycles[hidden]{display:none}
+.cwrap{max-width:520px;margin:0 auto}
+.chead{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:6px;position:sticky;top:0;background:var(--bg);padding:2px 0 6px;z-index:1}
+.chead .t{text-align:center;font-weight:750;font-size:18px}
+.chead .iconbtn{font-size:28px;line-height:1;padding:4px 8px;color:var(--ink)}
+.ccard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px 14px;margin-bottom:10px}
+.ctop{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px}
+.cname{font-weight:700;font-size:15px}
+.cpct{font-size:28px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums}
+.cpct.none{color:var(--muted);font-weight:600}
+/* 80%+ border: a 2px sage → khaki → rose gradient ring with a soft glow */
+.ccard.win,.score.win{border:2px solid transparent;
+  background:linear-gradient(135deg,transparent 50%,rgba(165,154,126,.22)) padding-box,
+             linear-gradient(var(--card),var(--card)) padding-box,
+             linear-gradient(120deg,var(--yes),var(--khaki) 50%,var(--rose)) border-box;
+  box-shadow:0 0 0 4px rgba(165,154,126,.18),0 6px 22px rgba(165,154,126,.35)}
+/* trend chart */
+.trend{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px 8px;margin-bottom:14px}
+.trend .tt{font-weight:700;font-size:15px;margin-bottom:2px}
+.trend .ts{font-size:12px;color:var(--muted);margin-bottom:6px}
+.trend svg{display:block;width:100%;touch-action:pan-y}
+.trend .axis{font-size:11px;fill:var(--muted);font-family:inherit}
+.trend .lbl{font-size:12px;font-weight:700;fill:var(--ink);font-family:inherit}
+.trend .ref{font-size:11px;font-weight:700;fill:var(--muted);font-family:inherit}
+.trend .empty{font-size:14px;color:var(--muted);padding:18px 0 14px;text-align:center}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.35;white-space:nowrap;transform:translate(-50%,-100%);z-index:2}
+.tip b{font-size:14px}
+.tip[hidden]{display:none}
+.csum{text-align:center;font-size:16px;font-weight:600;color:var(--muted);margin:2px 0 14px}
+.csum .big{font-size:30px;font-weight:780;color:var(--ink);margin-right:2px;font-variant-numeric:tabular-nums}
+.ccard.win .cpct .num{background:linear-gradient(100deg,var(--yes),var(--khaki) 55%,var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ccard.win .cpct::after{content:" ✨";font-size:18px}
+.mgrid{display:grid;grid-template-columns:repeat(25,1fr);gap:2px}
+.mcell{aspect-ratio:1/1.5;border-radius:2px;background:var(--empty)}
+.mcell.Y{background:var(--yes)}
+.mcell.N{background:var(--no)}
 </style>
 </head>
 <body>
 <main>
   <header>
     <div class="brand">80/20</div>
-    <button class="iconbtn" id="openSettings" aria-label="Settings">⚙︎</button>
+    <div class="hdr-actions">
+      <button class="iconbtn" id="openCycles" aria-label="All cycles">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 17l5-5 4 3.5 7.5-8"/><path d="M15 7.5h5v5"/></svg>
+      </button>
+      <button class="iconbtn" id="openSettings" aria-label="Settings">⚙︎</button>
+    </div>
   </header>
 
   <section class="card score" id="score" aria-label="Cycle score">
@@ -106,6 +154,17 @@ input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px so
   <div class="status" id="status"></div>
 </main>
 
+<section class="cycles" id="cyclesView" hidden aria-label="All cycles">
+  <div class="cwrap">
+    <div class="chead">
+      <button class="iconbtn" id="closeCycles" aria-label="Back">‹</button>
+      <div class="t">Cycles</div>
+      <span></span>
+    </div>
+    <div id="cycleList"></div>
+  </div>
+</section>
+
 <dialog id="settings">
   <form method="dialog" id="settingsForm">
     <h2>Settings</h2>
@@ -118,6 +177,7 @@ input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px so
     <label for="sAnchor">First day of cycle 1</label>
     <input id="sAnchor" type="date">
     <div class="hint">Cycles run 25 days (100 meals) from this date.</div>
+    <div class="warn" id="anchorWarn" hidden>Changing this regroups all your cycles, past and current. Your entries aren’t affected, and changing it back restores everything.</div>
     <div id="testMsg"></div>
     <div class="row">
       <button type="button" class="btn" id="testBtn">Test</button>
@@ -235,7 +295,9 @@ function render() {
     ? `${left} of ${ALLOWANCE} N meals left this cycle`
     : `${-left} N meal${left === -1 ? '' : 's'} past the ${ALLOWANCE} for this cycle`;
 
-  $('dayTitle').textContent = fmt(current, {weekday:'short', month:'short', day:'numeric'});  $('todayBtn').hidden = current === t;
+  $('dayTitle').textContent = fmt(current, {weekday:'short', month:'short', day:'numeric'});
+  $('todayBtn').hidden = current === t;
+  if (!$('cyclesView').hidden) renderCycles();
 
   const wrap = $('meals');
   wrap.innerHTML = '';
@@ -256,6 +318,162 @@ function render() {
     wrap.appendChild(row);
   }
 }
+
+// ---- cycles view ----
+const cycleIndex = s => Math.floor(diffDays(settings.anchor, s) / CYCLE_DAYS);
+
+// Always show the year: "Nov 2 – Nov 26, 2026", or "Dec 22, 2026 – Jan 15, 2027" when it spans two
+function cycleName(start, end) {
+  const md = {month: 'short', day: 'numeric'}, mdy = {...md, year: 'numeric'};
+  const spans = parse(start).getFullYear() !== parse(end).getFullYear();
+  return `${fmt(start, spans ? mdy : md)} – ${fmt(end, mdy)}`;
+}
+
+function renderCycles() {
+  const dates = Object.keys(entries);
+  const ks = [0, cycleIndex(today()), ...dates.map(cycleIndex)];
+  const kMin = Math.min(...ks), kMax = Math.max(...ks);
+  const list = $('cycleList');
+  list.innerHTML = '';
+  const sum = document.createElement('div');
+  sum.className = 'csum';
+  list.appendChild(sum);
+  const trend = document.createElement('div');
+  trend.className = 'trend';
+  list.appendChild(trend);
+  const points = [];                             // oldest → newest, for the chart
+  const kNow = cycleIndex(today());
+  let tracked = 0, wins = 0;
+  for (let k = kMax; k >= kMin; k--) {           // newest first
+    const start = addDays(settings.anchor, k * CYCLE_DAYS);
+    const end = addDays(start, CYCLE_DAYS - 1);
+    let y = 0, n = 0;
+    const grid = document.createElement('div');
+    grid.className = 'mgrid';
+    for (const meal of MEALS) {
+      for (let i = 0; i < CYCLE_DAYS; i++) {
+        const v = getVal(addDays(start, i), meal);
+        if (v === 'Y') y++; else if (v === 'N') n++;
+        const c = document.createElement('div');
+        c.className = 'mcell' + (v ? ' ' + v : '');
+        grid.appendChild(c);
+      }
+    }
+    const logged = y + n;
+    const win = logged > 0 && y / logged >= 0.8;
+    if (logged) tracked++;
+    if (win) wins++;
+    points.unshift({start, end, pct: logged ? y / logged * 100 : null, current: k === kNow});
+    const card = document.createElement('div');
+    card.className = 'ccard' + (win ? ' win' : '');
+    card.innerHTML = `<div class="ctop"><div class="cname">${cycleName(start, end)}</div>`
+      + (logged ? `<div class="cpct"><span class="num">${Math.floor(y / logged * 100)}%</span></div>`
+                : `<div class="cpct none">—</div>`)
+      + `</div>`;
+    card.setAttribute('aria-label', `${cycleName(start, end)}: ${logged ? Math.floor(y / logged * 100) + '% on plan' : 'no entries'}`);
+    card.appendChild(grid);
+    list.appendChild(card);
+  }
+  // empty cycles aren't counted; the current cycle is, once it has entries
+  sum.innerHTML = `<span class="big">${wins}</span> of ${tracked} cycle${tracked === 1 ? '' : 's'} 80%+${wins ? ' ✨' : ''}`;
+  drawTrend(trend, points);
+}
+
+// Line chart of % on plan per cycle. Empty cycles leave a gap; the current cycle is a hollow dot.
+function drawTrend(box, pts) {
+  box.innerHTML = '<div class="tt">% on plan by cycle</div>';
+  const data = pts.filter(p => p.pct !== null);
+  if (data.length < 2) {
+    box.innerHTML += '<div class="empty">Your trend line appears once you log a meal in your second cycle.</div>';
+    return;
+  }
+  box.innerHTML += '<div class="ts">Tap the chart to see each cycle</div>';
+  const W = Math.max(260, box.clientWidth - 28), H = 170;
+  const m = {l: 30, r: 44, t: 12, b: 22};   // right margin fits a "100%" end label
+  const lo = Math.max(0, Math.min(70, Math.floor((Math.min(...data.map(p => p.pct)) - 5) / 10) * 10));
+  const xs = i => m.l + (pts.length === 1 ? 0 : i * (W - m.l - m.r) / (pts.length - 1));
+  const ys = v => m.t + (100 - v) * (H - m.t - m.b) / (100 - lo);
+  const css = getComputedStyle(document.documentElement);
+  const line = css.getPropertyValue('--yes').trim(), card = css.getPropertyValue('--card').trim();
+  const grid = css.getPropertyValue('--line').trim(), muted = css.getPropertyValue('--muted').trim();
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Percent on plan for each cycle">`;
+  // gridlines + y ticks
+  for (let v = lo; v <= 100; v += lo <= 40 ? 20 : 10) {
+    if (v === 80) continue;
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${ys(v)}" y2="${ys(v)}" stroke="${grid}" stroke-width="1"/>`
+      + `<text class="axis" x="${m.l - 6}" y="${ys(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  // 80% target line
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${ys(80)}" y2="${ys(80)}" stroke="${muted}" stroke-width="1.5" stroke-dasharray="4 4"/>`
+    + `<text class="ref" x="${m.l - 6}" y="${ys(80) + 4}" text-anchor="end">80</text>`;
+  // line segments, broken at empty cycles
+  let d = '';
+  pts.forEach((p, i) => {
+    if (p.pct === null) return;
+    const prev = pts[i - 1];
+    d += `${prev && prev.pct !== null ? 'L' : 'M'}${xs(i).toFixed(1)},${ys(p.pct).toFixed(1)}`;
+  });
+  s += `<path d="${d}" fill="none" stroke="${line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  // markers with a surface-colored ring
+  const r = pts.length > 30 ? 3 : 4;
+  pts.forEach((p, i) => {
+    if (p.pct === null) return;
+    s += p.current
+      ? `<circle cx="${xs(i)}" cy="${ys(p.pct)}" r="${r + 0.5}" fill="${card}" stroke="${line}" stroke-width="2"/>`
+      : `<circle cx="${xs(i)}" cy="${ys(p.pct)}" r="${r}" fill="${line}" stroke="${card}" stroke-width="2" paint-order="stroke"/>`;
+  });
+  // label only the latest value
+  const li = pts.map(p => p.pct !== null).lastIndexOf(true);
+  s += `<text class="lbl" x="${xs(li) + 8}" y="${ys(pts[li].pct) + 4}">${Math.floor(pts[li].pct)}%</text>`;
+  // x labels: first and last cycle start
+  // month + year ("Nov '26"); falls back to month + day ("Nov 2", "Nov 27") when both land in the same month
+  const mon = p => fmt(p.start, {month: 'short', year: '2-digit'}).replace(' ', " '");
+  const first = pts[0], last = pts[pts.length - 1];
+  const same = mon(first) === mon(last);
+  const xl = p => same ? fmt(p.start, {month: 'short', day: 'numeric'}) : mon(p);
+  s += `<text class="axis" x="${xs(0)}" y="${H - 4}" text-anchor="start">${xl(first)}</text>`
+    + `<text class="axis" x="${xs(pts.length - 1)}" y="${H - 4}" text-anchor="end">${xl(last)}</text>`;
+  s += `<line class="xh" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="${muted}" stroke-width="1" visibility="hidden"/>`;
+  s += `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/></svg>`;
+  box.insertAdjacentHTML('beforeend', s + '<div class="tip" hidden></div>');
+
+  // tap / hover: crosshair + tooltip on the nearest cycle
+  const svg = box.querySelector('svg'), tip = box.querySelector('.tip'), xh = svg.querySelector('.xh');
+  const show = ev => {
+    const rect = svg.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) * W / rect.width;
+    let best = -1, bd = Infinity;
+    pts.forEach((p, i) => { const dd = Math.abs(xs(i) - x); if (dd < bd) { bd = dd; best = i; } });
+    const p = pts[best];
+    xh.setAttribute('x1', xs(best)); xh.setAttribute('x2', xs(best)); xh.setAttribute('visibility', 'visible');
+    tip.innerHTML = `${cycleName(p.start, p.end)}<br><b>${p.pct === null ? 'No entries' : Math.floor(p.pct) + '% on plan'}</b>${p.current ? ' · in progress' : ''}`;
+    const brect = box.getBoundingClientRect();     // tooltip is positioned inside the chart card
+    const px = rect.left - brect.left + xs(best) * rect.width / W;
+    const py = rect.top - brect.top + (p.pct === null ? ys(100) : ys(p.pct)) * rect.height / H - 10;
+    tip.hidden = false;
+    const half = tip.offsetWidth / 2;
+    tip.style.left = Math.min(Math.max(px, half + 4), box.clientWidth - half - 4) + 'px';
+    tip.style.top = Math.max(py, tip.offsetHeight + 2) + 'px';
+  };
+  const hide = () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); };
+  svg.addEventListener('pointerdown', show);
+  svg.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) show(e); });
+  svg.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+  hideTip = hide;
+}
+let hideTip = () => {};
+
+function openCycles() {
+  $('cyclesView').hidden = false;               // show first so the chart can measure its width
+  renderCycles();
+  $('cyclesView').scrollTop = 0;
+  try { history.pushState({view: 'cycles'}, ''); } catch {}
+}
+function closeCycles() { $('cyclesView').hidden = true; }
+window.addEventListener('resize', () => { if (!$('cyclesView').hidden) renderCycles(); });
+$('cyclesView').addEventListener('scroll', () => hideTip(), {passive: true});
+// tapping outside the chart hides its tooltip
+$('cyclesView').addEventListener('pointerdown', e => { if (!e.target.closest('.trend svg')) hideTip(); });
 
 // ---- sync with the Google Sheet (via Apps Script) ----
 const status = msg => { $('status').textContent = msg; };
@@ -344,12 +562,21 @@ $('prev').onclick = () => { current = addDays(current, -1); render(); };
 $('next').onclick = () => { current = addDays(current, 1); render(); };
 $('todayBtn').onclick = () => { current = today(); render(); };
 
+$('openCycles').onclick = openCycles;
+// the on-screen back arrow and Android's back gesture both return to the main screen
+$('closeCycles').onclick = () => { if (history.state && history.state.view === 'cycles') history.back(); else closeCycles(); };
+window.addEventListener('popstate', closeCycles);
+
 const dlg = $('settings');
 $('openSettings').onclick = () => {
   $('sUrl').value = settings.url; $('sToken').value = settings.token; $('sAnchor').value = settings.anchor;
   $('testMsg').textContent = '';
+  $('anchorWarn').hidden = true;
   dlg.showModal();
 };
+$('sAnchor').addEventListener('input', () => {
+  $('anchorWarn').hidden = !$('sAnchor').value || $('sAnchor').value === settings.anchor || !Object.keys(entries).length;
+});
 $('cancelBtn').onclick = () => dlg.close();
 $('testBtn').onclick = async () => {
   const s = {url: $('sUrl').value.trim(), token: $('sToken').value};

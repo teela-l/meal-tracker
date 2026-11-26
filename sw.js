@@ -1,6 +1,6 @@
 // Network-first for the app's own files, with a cached copy for offline use.
 // Bump CACHE when you change the app so old copies are cleared.
-const CACHE = 'mt-v10';
+const CACHE = 'mt-v14';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
